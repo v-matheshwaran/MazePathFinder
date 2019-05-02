@@ -1,0 +1,166 @@
+Local array of array of string &aasResults;
+Local array of string &asMazeInput;
+Local array of string &asResultPath, &asResultPath2, &asSkipNodes;
+Local string &sStart, &sEnd;
+
+Function findNextStep(&asInput As array of string, &asSkipNodes2 As array of string) Returns array of string
+   Local string &sLastPos, &sCurrentString, &sSkipNodes;
+   &sLastPos = &asInput [&asInput.Len];
+   For &k = 1 To &asInput.Len
+      &sCurrentString = &sCurrentString | &asInput [&k];
+   End-For;
+   For &k = 1 To &asSkipNodes2.Len
+      &sSkipNodes = &sSkipNodes | &asSkipNodes2 [&k];
+   End-For;
+   rem MessageBox(0, "", 0, 0, "Current Path is: " | &sCurrentString | " || Skip nodes are: " | &sSkipNodes);
+   
+   If &sLastPos = &sEnd Then
+      Return &asInput;
+   End-If;
+   
+   Local boolean &bFoundNode;
+   Local integer &count;
+   &bFoundNode = False;
+   For &j = 2 To &sMazeInput.len
+      Local array of string &asPart2;
+      &asPart2 = Split(&sMazeInput [&j], ",");
+      If Not &asPart2 = Null Then
+         If &asPart2 [1] = &sLastPos And
+               &asSkipNodes2.Find(&asPart2 [2]) = 0 And
+               &asInput.Find(&asPart2 [2]) = 0 Then
+            &bFoundNode = True;
+            &asInput.Push(&asPart2 [2]);
+            &asInput = findNextStep(&asInput, &asSkipNodes2);
+         Else
+            If &asPart2 [2] = &sLastPos And
+                  &asSkipNodes2.Find(&asPart2 [1]) = 0 And
+                  &asInput.Find(&asPart2 [1]) = 0 Then
+               &bFoundNode = True;
+               &asInput.Push(&asPart2 [1]);
+               &asInput = findNextStep(&asInput, &asSkipNodes2);
+            End-If;
+         End-If;
+      End-If;
+   End-For;
+   
+   If Not &bFoundNode Then
+      Local string &sTempNode;
+      &sTempNode = &asInput.Pop();
+      If &asInput.Len > 0 Then
+         &asSkipNodes2.Push(&sTempNode);
+         &asInput = findNextStep(&asInput, &asSkipNodes2);
+      End-If;
+   End-If;
+   
+   Return &asInput;
+End-Function;
+
+Function calcCost(&asResult As array of string) Returns number
+   Local number &sSum;
+   
+   For &i = 1 To &asResult.Len - 1
+      For &j = 1 To &sMazeInput.len
+         Local array of string &asParts;
+         &asParts = Split(&sMazeInput [&j], ",");
+         If Not &asParts = Null Then
+            If (&asParts [1] = &asResult [&i] And
+                  &asParts [2] = &asResult [&i + 1]) Or
+                  (&asParts [2] = &asResult [&i] And
+                     &asParts [1] = &asResult [&i + 1]) Then
+               &sSum = &sSum + Value(&asParts [3]);
+            End-If;
+         End-If;
+      End-For;
+   End-For;
+   Return &sSum;
+End-Function;
+
+&aasResults = CreateArrayRept(CreateArrayRept("", 0), 0); /*  */
+&sMazeInput = CreateArray("g1,a5,0", "g1,g2,3", "g2,h2,2", "g2,f2,4", "g3,h3,3", "h1,h2,5", "h2,h3,6", "h3,h4,2", "h4,g4,4", "h4,h5,2", "g4,g5,4", "f1,e1,1", "f2,f3,1", "f3,f4,2", "f4,f5,5", "f5,e5,4", "f4,e4,3", "f2,e2,3", "e1,d1,3", "e2,f2,3", "e3,e4,6", "e4,f4,3", "d1,c1,2", "d2,e2,3", "d2,d3,5", "d3,c3,6", "d4,d5,6", "d4,e4,5", "d5,c5,8", "c2,b2,4", "c2,c3,7", "c4,d4,1", "c5,b5,6", "b1,a1,3", "b1,b2,5", "b2,b3,2", "b3,b4,3", "b4,b5,4", "b3,a3,2", "a1,a2,8", "a3,a4,1", "a4,a5,4");
+For &i = 1 To &sMazeInput.Len
+   Local array of string &asPart;
+   &asPart = Split(&sMazeInput [&i], ",");
+   If Not &asPart = Null Then
+      If (&asPart [3] = "0") Then
+         &sStart = &asPart [1];
+         &sEnd = &asPart [2];
+      End-If;
+   Else
+      &sError = "Input contains Blank parameters";
+   End-If;
+   For &ii = &i + 1 To &sMazeInput.Len
+      Local array of string &asPart3;
+      &asPart3 = Split(&sMazeInput [&ii], ",");
+      If &asPart [1] = &asPart3 [2] And
+            &asPart [2] = &asPart3 [1] And
+            &asPart [3] <> &asPart3 [3] Then
+         Error "Pair " | &sMazeInput [&i] | " and " | &sMazeInput [&ii] | " has different Cost " | &asPart [3] | " and " | &asPart3 [3];
+      End-If;
+   End-For;
+End-For;
+
+If Not (&sStart = "" Or
+      &sEnd = "") Then
+   &asResultPath = CreateArrayRept("", 0);
+   &asSkipNodes = CreateArrayRept("", 0);
+   &asResultPath.Push(&sStart);
+   &asSkipNodes.Push("xx");
+   
+   &asResultPath = findNextStep(&asResultPath, &asSkipNodes);
+   If &asResultPath.Len > 0 Then
+      If &sEnd = &asResultPath [&asResultPath.Len] Then
+         MessageBox(0, "", 0, 0, "Result 1 : " | &asResultPath.Join("=>") | " Cost : " | calcCost(&asResultPath));
+         &aasResults.Push(&asResultPath);
+         
+         &sCurrentString = "";
+         Local integer &nResultCount;
+         &nResultCount = 1;
+         
+         For &new = 2 To &asResultPath.Len
+            Local array of string &asPathChange;
+            &asPathChange = CreateArrayRept("", 0);
+            &asPathChange.Push(&asResultPath [&new]);
+            &asResultPath2 = findNextStep(CreateArray(&sStart), &asPathChange);
+            If &asResultPath2.Len > 0 Then
+               If &sEnd = &asResultPath2 [&asResultPath2.Len] Then
+                  Local boolean &bDuplicate;
+                  &bDuplicate = False;
+                  For &x = 1 To &aasResults.Len
+                     If &aasResults [&x].Len = &asResultPath2.Len Then
+                        &same = 0;
+                        For &y = 1 To &asResultPath2.Len
+                           If &aasResults [&x][&y] = &asResultPath2 [&y] Then
+                              &same = &same + 1;
+                           End-If;
+                        End-For;
+                        If &same = &asResultPath2.Len Then
+                           &bDuplicate = True;
+                        End-If;
+                     Else
+                        &bDuplicate = False;
+                     End-If;
+                  End-For;
+                  If Not &bDuplicate Then
+                     &aasResults.Push(&asResultPath2);
+                     &nResultCount = &nResultCount + 1;
+                     
+                     MessageBox(0, "", 0, 0, "Result " | &nResultCount | " : " | &asResultPath2.Join("=>") | " Cost : " | calcCost(&asResultPath2));
+                  Else
+                     rem MessageBox(0, "", 0, 0, "Duplicate Result");
+                  End-If;
+                  
+               End-If;
+            End-If;
+         End-For;
+      Else
+         MessageBox(0, "", 0, 0, "No solution available for the given Maze : ");
+      End-If;
+   Else
+      MessageBox(0, "", 0, 0, "No solution available for the given Maze");
+   End-If;
+Else
+   &sError = "Unable to determine Start and End of the Maze given";
+End-If;
+If Not None(&sError) Then
+   MessageBox(0, "", 0, 0, "Error is : " | &sError);
+End-If;
